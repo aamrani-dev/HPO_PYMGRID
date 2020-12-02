@@ -146,13 +146,8 @@ def BOHB(MyTrainableClass, results_folder, possible_values, hyperhyper_params):
 
     # BOHB uses ConfigSpace for their hyperparameter search space
     from ray.tune.suggest.bohb import TuneBOHB
-    import ConfigSpace as CS
 
-    config_space = CS.ConfigurationSpace()
-
-    for k, v in possible_values.items():
-        csvar = CS.CategoricalHyperparameter(k, choices=v)
-        config_space.add_hyperparameter(csvar)
+    config = _tune_config(possible_values)
 
     scheduler = HyperBandForBOHB(
         time_attr="training_iteration",
@@ -160,13 +155,14 @@ def BOHB(MyTrainableClass, results_folder, possible_values, hyperhyper_params):
         reduction_factor=hyperhyper_params["pruning_factor"],
         metric=hyperhyper_params["metric"], mode=hyperhyper_params["mode"])
 
-    algo = TuneBOHB(config_space, max_concurrent=["max_concurrent"],
+    algo = TuneBOHB(max_concurrent=hyperhyper_params["max_concurrent"],
                     metric=hyperhyper_params["metric"], mode=hyperhyper_params["mode"])
 
     analysis = tune.run(
         local_dir=results_folder,
         name="exp",
         run_or_experiment=MyTrainableClass,
+        config=config,
         search_alg=algo,
         scheduler=scheduler,
         resources_per_trial={"gpu": NB_GPU_BY_TRIAL},

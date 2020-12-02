@@ -1,0 +1,8 @@
+cvxpy
+pandas
+numpy
+matplotlib
+plotly
+seaborn
+cufflinks
+statsmodels

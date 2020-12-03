@@ -22,22 +22,25 @@ parser.add_argument("--pruning_factor", required=False)
 args, unknown = parser.parse_known_args()
 args = vars(args)
 print(args)
-try:
-	if args["rl_algorithm"] not in ["dqn"]:
-		raise Exception("Requested RL algorithm is not supported")
-	else:
-		rl_algorithm = args["rl_algorithm"]
-except:
-	raise
-
 
 # Search Space
-if rl_algorithm == "dqn":
-	from  hpo_rl_pymgrid.dqn import mytrainable_dqn as mytrainable
-	from  hpo_rl_pymgrid.dqn import possible_values_dqn as search_space
-
-
-
+try:
+	if args["rl_algorithm"] == "dqn":
+		from  hpo_rl_pymgrid.dqn import mytrainable_dqn as mytrainable
+		from  hpo_rl_pymgrid.dqn import possible_values_dqn as search_space
+	elif args["rl_algorithm"] == "es":
+		from  hpo_rl_pymgrid.es import mytrainable_es as mytrainable
+		from  hpo_rl_pymgrid.es import possible_values_es as search_space
+	elif args["rl_algorithm"] == "appo":
+		from  hpo_rl_pymgrid.appo import mytrainable_appo as mytrainable
+		from  hpo_rl_pymgrid.appo import possible_values_appo as search_space
+	elif args["rl_algorithm"] == "pg":
+		from  hpo_rl_pymgrid.pg import mytrainable_pg as mytrainable
+		from  hpo_rl_pymgrid.pg import possible_values_pg as search_space
+	else:
+		raise Exception("Requested RL algorithm is not supported")
+except:
+	raise
 #Params which will be used when calling tune.run method
 common_config={
 "samples":int(args["samples"]),
@@ -50,52 +53,56 @@ common_config={
 
 
 algo = args["hp_algo"]
+try:
+	if algo == "PBT":
+		if args["resample_probability"] != None:
+			resample_probability = float(args["resample_probability"])
+		else:
+			resample_probability = 0.4
+		if args["perturbation_interval"] != None:
+			perturbation_interval = int(args["perturbation_interval"])
+		else:
+			perturbation_interval = 24
+		
+		config = {
+		"resample_probability": resample_probability, 
+		"perturbation_interval":perturbation_interval,
+		"mutation_variables": search_space.mutation_variables
+		}
+		# copy common_config in config
+		config.update(common_config)
+		strat_funct = HPO.PBT
 
-if algo == "PBT":
-	if args["resample_probability"] != None:
-		resample_probability = float(args["resample_probability"])
+	elif algo == "BOHB" or algo == "HB":
+		if args["max_concurrent"] != None:
+			max_concurrent = int(args["max_concurrent"])
+		else:
+			max_concurrent = 4
+
+		if args["pruning_factor"] != None:
+			pruning_factor = int(args["pruning_factor"])
+		else:
+			pruning_factor = 3
+
+		config = {
+		"max_concurrent":max_concurrent, 
+		"pruning_factor":pruning_factor,
+		}
+		# copy common_config in config
+		config.update(common_config)
+
+		if algo == "HB":
+			strat_funct = HPO.HB
+		else:
+			strat_funct = HPO.BOHB
+	elif alg == "RS": 
+		config = common_config
+		strat_funct = HPO.RS
 	else:
-		resample_probability = 0.4
-	if args["perturbation_interval"] != None:
-		perturbation_interval = int(args["perturbation_interval"])
-	else:
-		perturbation_interval = 24
+		raise Exception("Tuning algorithm not supported")
+except:
+	raise
 	
-	config = {
-	"resample_probability": resample_probability, 
-	"perturbation_interval":perturbation_interval,
-	"mutation_variables": search_space.mutation_variables
-	}
-	# copy common_config in config
-	config.update(common_config)
-	strat_funct = HPO.PBT
-
-elif algo == "BOHB" or algo == "HB":
-	if args["max_concurrent"] != None:
-		max_concurrent = int(args["max_concurrent"])
-	else:
-		max_concurrent = 4
-
-	if args["pruning_factor"] != None:
-		pruning_factor = int(args["pruning_factor"])
-	else:
-		pruning_factor = 3
-
-	config = {
-	"max_concurrent":max_concurrent, 
-	"pruning_factor":pruning_factor,
-	}
-	# copy common_config in config
-	config.update(common_config)
-
-	if algo == "HB":
-		strat_funct = HPO.HB
-	else:
-		strat_funct = HPO.BOHB
-else: 
-	config = common_config
-	strat_funct = HPO.RS
-
 # Instantiate RAY
 hpo=HPO.RAY_PROG_ABSTRACTION(mytrainable.MyClass, is_multinode_mode=False)
 # Run hyperband

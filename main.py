@@ -18,6 +18,7 @@ parser.add_argument("--resample_probability", required=False)
 parser.add_argument("--perturbation_interval", required=False)
 parser.add_argument("--max_concurrent", required=False)
 parser.add_argument("--pruning_factor", required=False)
+parser.add_argument("--pruning_frequency", required=False)
 
 args, unknown = parser.parse_known_args()
 args = vars(args)
@@ -37,6 +38,13 @@ try:
 	elif args["rl_algorithm"] == "pg":
 		from  hpo_rl_pymgrid.pg import mytrainable_pg as mytrainable
 		from  hpo_rl_pymgrid.pg import possible_values_pg as search_space
+	elif args["rl_algorithm"] == "a2c":
+		from  hpo_rl_pymgrid.a2c import mytrainable_a2c as mytrainable
+		from  hpo_rl_pymgrid.a2c import possible_values_a2c as search_space	
+	elif args["rl_algorithm"] == "a3c":
+		from  hpo_rl_pymgrid.a3c import mytrainable_a3c as mytrainable
+		from  hpo_rl_pymgrid.a3c import possible_values_a3c as search_space	
+
 	else:
 		raise Exception("Requested RL algorithm is not supported")
 except:
@@ -63,7 +71,6 @@ try:
 			perturbation_interval = int(args["perturbation_interval"])
 		else:
 			perturbation_interval = 24
-		
 		config = {
 		"resample_probability": resample_probability, 
 		"perturbation_interval":perturbation_interval,
@@ -83,10 +90,15 @@ try:
 			pruning_factor = int(args["pruning_factor"])
 		else:
 			pruning_factor = 3
+		if args["pruning_frequency"] != None:
+			pruning_frequency = args["pruning_frequency"]
+		else:
+			pruning_frequency = 5
 
 		config = {
 		"max_concurrent":max_concurrent, 
 		"pruning_factor":pruning_factor,
+		"pruning_frequency":pruning_frequency
 		}
 		# copy common_config in config
 		config.update(common_config)
@@ -95,9 +107,9 @@ try:
 			strat_funct = HPO.HB
 		else:
 			strat_funct = HPO.BOHB
-	elif alg == "RS": 
+	elif algo == "RS": 
 		config = common_config
-		strat_funct = HPO.RS
+		strat_funct = HPO.RS		
 	else:
 		raise Exception("Tuning algorithm not supported")
 except:
@@ -106,6 +118,6 @@ except:
 # Instantiate RAY
 hpo=HPO.RAY_PROG_ABSTRACTION(mytrainable.MyClass, is_multinode_mode=False)
 # Run hyperband
-results_folder = "/tmp/"+algo+"/"
+results_folder = "/tmp/"+args["rl_algorithm"] + "/" + algo+"/"
 hpo.RUN(results_folder,search_space.possible_values, config, strat_funct)
 

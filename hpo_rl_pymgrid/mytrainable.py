@@ -26,6 +26,7 @@ class MyClassAbstract(Trainable, ABC):
         reward=info["episode_reward_mean"]
         nb_days=float(self.nb_steps)/24
         mean_reward_by_day=reward/nb_days
+        print(mean_reward_by_day)
         out={"reward": mean_reward_by_day}
         print("TRAIN END")
         return out
@@ -36,12 +37,10 @@ class MyClassAbstract(Trainable, ABC):
         #s=self._evaluate()
         return -1
 
-    def save_checkpoint(self, checkpoint_dir):
+    def _save(self, checkpoint_dir):
         print("SAVE")
         file_path = checkpoint_dir
-        print(checkpoint_dir)
-        file_path = self.trainer.save(file_path)
-        print(checkpoint_dir)
+        self.trainer.save(file_path)
         print("SAVE END")
         return file_path
 
@@ -59,9 +58,7 @@ class MyClassAbstract(Trainable, ABC):
     def _restore(self, path):
         print("RESTORE")
         checkpoint_leaf_path=self.get_restore_path(path)
-        print(checkpoint_leaf_path)
-        print(path)
-        self.trainer.restore(path)
+        self.trainer.restore(checkpoint_leaf_path)
         print("RESTORE END")
 
 

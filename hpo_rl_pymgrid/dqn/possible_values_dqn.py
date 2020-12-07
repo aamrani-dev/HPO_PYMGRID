@@ -13,12 +13,13 @@ try:
 except:
 	raise
 
+print(args["dqn_type"])
 possible_values={
  	"lr": tune.loguniform(0.0001, 0.1),
-    "wide": [24, 60, 180, 360, 720],
+    "wide": [24, 60, 180],
     "deep": [1, 3, 5, 8],
     "type": args["dqn_type"],
-    "train_batch_size": [167, 336, 720, 2160 ], 
+    "train_batch_size": [167, 336, 720 ], 
     "gamma": [0.98, 0.99, 0.995]
 }
 

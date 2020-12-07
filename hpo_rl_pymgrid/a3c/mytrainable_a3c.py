@@ -12,11 +12,9 @@ sys.path.append(PATH_PYMGRID)
 import gym
 from PYMGRID.src.pymgrid.Environments.pymgrid_cspla import MicroGridEnv
 from PYMGRID.src.pymgrid import MicrogridGenerator as mg
-
-from ray.rllib.agents import es
 import ray
 from ray.tune import Trainable
-from ray.rllib.agents import dqn
+from ray.rllib.agents.a3c import a3c
 import os
 from pymgrid.Environments.Environment import Environment
 from hpo_rl_pymgrid.mytrainable import  MyClassAbstract
@@ -24,11 +22,13 @@ from hpo_rl_pymgrid.mytrainable import  MyClassAbstract
 class MyClass(MyClassAbstract):
     def _setup(self, config):
         
+        # THIS FOLLOWING LIST CONTAINS THE HYPERPARAMETERS WE TUNE: 
+        #   lr, deep, wide, train_batch_size
         print("SETUP : ", str(config))
         gpu_ids = ray.get_gpu_ids()
         print("GPU_IDS=",gpu_ids)
         
-        rl_algo_config = es.DEFAULT_CONFIG.copy()
+        rl_algo_config = a3c.DEFAULT_CONFIG.copy()
         rl_algo_config["log_level"] = "WARN"
 
         #Generating microgrid
@@ -39,12 +39,13 @@ class MyClass(MyClassAbstract):
         mg0.set_horizon(self.nb_steps)  # TODO: check if it is usefull     
         rl_algo_config["env_config"] = {"microgrid":mg0}
 
-        # ES parameters and hyperparameters
-        rl_algo_config["episodes_per_batch"] = config["episodes_per_batch"]
+        # dqn parameters and hyperparameters
+        rl_algo_config["soft_horizon"] = self.nb_steps
+        rl_algo_config["num_workers"] = config["num_workers"]
+        rl_algo_config["lr"] = config["lr"]
         rl_algo_config["train_batch_size"] = config["train_batch_size"]
-        rl_algo_config["noise_stdev"] = config["noise_stdev"]
-        rl_algo_config["eval_prob"] = 0.02#config["eval_prob"]
-        rl_algo_config["num_workers"]:100
+        rl_algo_config["gamma"] = config["gamma"]
+        rl_algo_config["min_iter_time_s"] = 2
         #os.environ["CUDA_VISIBLE_DEVICES"]='-1'
 
 
@@ -55,6 +56,6 @@ class MyClass(MyClassAbstract):
         # rl_algo_config["num_workers"] = 1
         # rl_algo_config["eager"] = False
 
-        self.trainer = es.ESTrainer(env=MicroGridEnv, config=rl_algo_config)
+        self.trainer = a3c.A3CTrainer(env=MicroGridEnv, config=rl_algo_config)
 
         print("SETUP END")

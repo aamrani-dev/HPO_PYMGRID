@@ -27,17 +27,14 @@ class CustomStopper:
         return self.should_stop
 
 def _hyperband_sched(hyperhyper_params):
-    if "pruning_factor" in hyperhyper_params:
-        reduction_factor=hyperhyper_params["pruning_factor"]
-    else:
-        reduction_factor=2
     return AsyncHyperBandScheduler(
         time_attr="training_iteration",
         metric=hyperhyper_params["metric"],
         mode=hyperhyper_params["mode"],
         max_t=hyperhyper_params["iter_max"],
-        reduction_factor=reduction_factor
-        )
+        # grace_period=hyperhyper_params["iter_min"],
+        reduction_factor=hyperhyper_params["pruning_factor"]
+        ) 
 
 def _tune_config(possible_values):
     config = {}
@@ -84,23 +81,21 @@ def RS(MyTrainableClass, results_folder, possible_values, hyperhyper_params):
 # Hyberband 
 def HB(MyTrainableClass, results_folder, possible_values, hyperhyper_params):
     config = _tune_config(possible_values)
-
-    algo = HyperOptSearch(metric=hyperhyper_params["metric"], mode=hyperhyper_params["mode"])
-    algo = ConcurrencyLimiter(algo, max_concurrent=hyperhyper_params["max_concurrent"])
-
     sched = _hyperband_sched(hyperhyper_params)
     stopper = {'training_iteration': hyperhyper_params['iter_max']}
 
     analysis = tune.run(
         local_dir=results_folder,
-        name="exp_results",
+        name="exp",
         run_or_experiment=MyTrainableClass,
-        search_alg=algo,
-        scheduler=sched,
-        config=config,
-        num_samples=hyperhyper_params["samples"],
         stop=stopper,
-        resources_per_trial={"gpu": NB_GPU_BY_TRIAL},
+        scheduler=sched,
+        resources_per_trial={
+            "cpu": min(8/hyperhyper_params["samples"],1),
+            "gpu": 1/hyperhyper_params["samples"]
+        },
+        num_samples=hyperhyper_params["samples"],
+        config=config,
         checkpoint_at_end=True)
     
     return analysis
@@ -121,10 +116,9 @@ def PBT(MyTrainableClass, results_folder, possible_values, hyperhyper_params):
         time_attr="training_iteration",
         metric=hyperhyper_params["metric"],
         mode=hyperhyper_params["mode"],
-        resample_probability= hyperhyper_params["resample_probability"],  # probability to draw new value
-        hyperparam_mutations=possible_mutations,
-        perturbation_interval = hyperhyper_params["perturbation_interval"])
-
+        perturbation_interval=hyperhyper_params["perturbation_interval"],
+        resample_probability=hyperhyper_params["resample_probability"],  # probability to draw new value
+        hyperparam_mutations=possible_mutations)
     analysis = tune.run(
         reuse_actors=False,
         stop=stopper,
@@ -137,7 +131,6 @@ def PBT(MyTrainableClass, results_folder, possible_values, hyperhyper_params):
         config=config,
         checkpoint_at_end=True)
     return analysis
-
 
 #Bayesian Optimization mixed to Hyperband
 def BOHB(MyTrainableClass, results_folder, possible_values, hyperhyper_params):
